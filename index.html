@@ -75,7 +75,7 @@
         <div class="navbar-brand is-flex-center">
             <a class="navbar-item navbar-logo" href="/">
             
-                <img src="/images/logo.svg" alt="hyunsoo&#39;s tech world" height="28">
+                <img src="/images/logo.png" alt="hyunsoo&#39;s tech world" height="28">
             
             </a>
         </div>
@@ -148,7 +148,7 @@
                 <span class="level-item has-text-grey">
                     
                     
-                    5분 읽기 (나에 대하여 714 단어)
+                    5분 읽기 (나에 대하여 715 단어)
                 </span>
                 
                 
@@ -162,46 +162,16 @@
         </h1>
         <div class="content">
             <h2 id="문제-현상"><a href="#문제-현상" class="headerlink" title="문제/현상"></a>문제/현상</h2><p>excel로 export를 할 때 로컬이나 QA 환경에서는 정상적으로 excel 다운로드가 이루어지나, 운영 환경에서는 Canonical Path를 사용하라는 메세지를 남기면서 에러가 뜬다.</p>
-<h2 id="원인"><a href="#원인" class="headerlink" title="원인"></a>원인</h2><p>처음에는 excel 파일을 만들기 위해서,</p>
-<ol>
-<li>workbook을 생성하고</li>
-<li>worksheet에 내용을 다 쓰게 되면</li>
-<li>이를 FileOutputStream을 이용해서 실제 file에 쓰게 되고</li>
-<li>이를 서버내의 임의의 경로에 떨군 다음 사용자에게 밀어주는 형태로</li>
-</ol>
-<p>구성했다.</p>
-<hr>
-<p>그러나 문제가 되는 부분은 실제 file을 new File(filePath); 한 부분인데 이 때 filePath를 설정 파일 내에서 가져와서 그 뒤에 file명만 붙여서 절대 path처럼 사용한 것임에도 불구하고 Canonical Path를 쓰지 않아서 error가 난다고 하니 통 이해할 수 없었다.</p>
-<hr>
-<p>관련하여 구글링을 해보니,</p>
-<p>Absolute Path와 Canonical Path의 차이점( <a href="https://www.benjaminlog.com/entry/absolute-path-vs-canonical-path" target="_blank" rel="noopener">https://www.benjaminlog.com/entry/absolute-path-vs-canonical-path</a> ) 이라는 게시물이 있었다.</p>
-<p>간단히 요약하자면 Abolute Path는 path의 expression안에 ../ 이나 ./ 같은 문자열도 사용이 가능하고 Canonical Path는 그런 표현을 허락하지 않는다는 것이다.</p>
-<p>예를 들어,</p>
-<blockquote>
-<p>Path : /users/hslee 라는 주소가 있다면,</p>
-<p>Absolute Path : /users/../users/hslee도 가능하고, /users/./././hslee 도 가능하다.</p>
-<p>Canonical Path : /users/hslee 단 하나만 가능하다.</p>
-</blockquote>
-<p>그러나 실제로 나온 path는 ../이나 ./이 없는 상태였기에 위의 방법으로는 해결하지 못했다.</p>
-<h2 id="조치"><a href="#조치" class="headerlink" title="조치"></a>조치</h2><p>file의 path부분에서 계속 에러가 발생하니 file을 생성하고 사용자에게 push하지 않고</p>
-<p>애초에 output Stream을 사용해서 excel을 작성하니 HttpOutputServletResponse로 그대로 밀어버리면 될 듯했다.</p>
-<p>마침 기존 grid 화면에서 grid api를 사용하여 excel export를 그런 식으로 구현하고 있어 조금 차용하였다.</p>
-<figure class="highlight java hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-comment">// before</span></span><br><span class="line">HSSFWorkbook wb = <span class="hljs-keyword">new</span> HSSFWorkbook();</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">String filePath = System.getProperty() + java.io.FileSeparator + <span class="hljs-string">"data.xls"</span>;</span><br><span class="line">FileOutputStream fos = <span class="hljs-keyword">new</span> File(filePath);</span><br><span class="line"></span><br><span class="line">wb.write(fos);</span><br><span class="line"></span><br><span class="line"><span class="hljs-comment">// after</span></span><br><span class="line">HSSFWorkbook wb = <span class="hljs-keyword">new</span> HSSFWorkbook();</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">ServletOutputStream sos = response.getOutputStream();</span><br><span class="line"></span><br><span class="line">wb.write(sos);</span><br></pre></td></tr></table></figure>
-
-<h2 id="결과"><a href="#결과" class="headerlink" title="결과"></a>결과</h2><p>다행히도 문제 없이 정상적으로 다운로드를 할 수 있었다. 기존 enovia 환경이었다면 request, response 대신 context만 넘어오길 때문에 이와 같은 방법을 쓰기에는(java 단에서) 어려웠을 것이다.</p>
-<h3 id="장점"><a href="#장점" class="headerlink" title="장점"></a>장점</h3><ul>
-<li>file path를 구하는 것보다 소스 구현이 편하다.</li>
-<li>file로 생성하면 나중에 삭제 로직도 구현해야 하지만 stream을 사용하면 그럴 필요가 없다.</li>
-</ul>
-<h3 id="단점"><a href="#단점" class="headerlink" title="단점"></a>단점</h3><ul>
-<li>response가 필요하므로 controller단부터 response를 계속 parameter로 넘겨줘야 한다.</li>
-</ul>
-<h2 id="연계해서-공부할-것"><a href="#연계해서-공부할-것" class="headerlink" title="연계해서 공부할 것"></a>연계해서 공부할 것</h2><ul>
-<li>file을 사용자에게 제공하는 방법에 무엇이 더 있는지 알아보자.</li>
-</ul>
-
         </div>
         
+        
+        <div class="level is-mobile">
+            <div class="level-start">
+                <div class="level-item">
+                <a class="button is-size-7 is-light" href="/2019/11/18/Excel-Export/#more">자세히 보기</a>
+                </div>
+            </div>
+        </div>
         
         
     </div>
@@ -237,7 +207,7 @@
                 <span class="level-item has-text-grey">
                     
                     
-                    2분 읽기 (나에 대하여 341 단어)
+                    2분 읽기 (나에 대하여 342 단어)
                 </span>
                 
                 
@@ -252,126 +222,16 @@
         <div class="content">
             <h2 id="목표"><a href="#목표" class="headerlink" title="목표"></a>목표</h2><p>주식 추천 종목 추출</p>
 <h2 id="동기"><a href="#동기" class="headerlink" title="동기"></a>동기</h2><p>월급을 모아서는 서울에 집 한 채도 가지기 힘든 요즘. <strong>YOLO</strong> 스타일을 추구하는 우리 부부에게 노후 대책은 이제 주식 뿐이야! 올바른 주식 투자를 위해서는 <strong>퀀트투자</strong>가 답! <strong>퀀트투자</strong>를 하기 위해서 재무제표 기반으로 건설적인 투자 계획을 세우자!</p>
-<h2 id="세부-목표"><a href="#세부-목표" class="headerlink" title="세부 목표"></a>세부 목표</h2><p>재무제표 정보를 기반으로 하여 원하는 지표에 맞는 종목을 추천해줄 것</p>
-<h2 id="요구-사항"><a href="#요구-사항" class="headerlink" title="요구 사항"></a>요구 사항</h2><table>
-<thead>
-<tr>
-<th>항목</th>
-<th>우선순위</th>
-<th>Remark</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>재무제표 crawling</td>
-<td>1</td>
-<td></td>
-</tr>
-<tr>
-<td>재무제표 view</td>
-<td>3</td>
-<td></td>
-</tr>
-<tr>
-<td>기업정보 crawling</td>
-<td>2</td>
-<td></td>
-</tr>
-<tr>
-<td>기업정보 view</td>
-<td>4</td>
-<td></td>
-</tr>
-<tr>
-<td>custom 지표 적용</td>
-<td>9</td>
-<td></td>
-</tr>
-<tr>
-<td>추천종목 추출</td>
-<td>5</td>
-<td></td>
-</tr>
-<tr>
-<td>excel export</td>
-<td>8</td>
-<td></td>
-</tr>
-<tr>
-<td>snapshot</td>
-<td>6</td>
-<td></td>
-</tr>
-<tr>
-<td>snapshot 대상에 대한 매월 auto snapshot</td>
-<td>7</td>
-<td></td>
-</tr>
-<tr>
-<td>DART의 재무제표 export file에 대한 parsing 기능</td>
-<td>10</td>
-<td></td>
-</tr>
-</tbody></table>
-<h2 id="필요-기술"><a href="#필요-기술" class="headerlink" title="필요 기술"></a>필요 기술</h2><ul>
-<li>언어 : python</li>
-<li>web framework : Django</li>
-<li>DB : maria DB, MySQL</li>
-<li>화면 : Vue.js</li>
-<li>crawling을 위한 scheduler : apscheduler</li>
-<li>grid : toast-UI</li>
-</ul>
-<h2 id="일정-수립"><a href="#일정-수립" class="headerlink" title="일정 수립"></a>일정 수립</h2><table>
-<thead>
-<tr>
-<th>Task</th>
-<th>Desc</th>
-<th>Plan<br>Start</th>
-<th>Plan<br>End</th>
-<th>Actual<br>Start</th>
-<th>Actual<br>End</th>
-<th>Remark</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>화면 설계</td>
-<td>요구사항을 수행할 수 있는 화면 설계</td>
-<td>11/15</td>
-<td>11/15</td>
-<td></td>
-<td></td>
-<td><a href="https://ovenapp.io/" target="_blank" rel="noopener">https://ovenapp.io/</a></td>
-</tr>
-<tr>
-<td>DB 설계</td>
-<td>요구사항의 내용으로 Data Modeling</td>
-<td>11/18</td>
-<td>11/18</td>
-<td></td>
-<td></td>
-<td><a href="http://aquerytool.com/" target="_blank" rel="noopener">http://aquerytool.com/</a></td>
-</tr>
-<tr>
-<td>환경설정</td>
-<td>구현하기 위한 기본 환경 설정</td>
-<td>11/19</td>
-<td>11/21</td>
-<td></td>
-<td></td>
-<td>환경 설정 문서를 slideshare로 남길 것</td>
-</tr>
-<tr>
-<td>구현</td>
-<td>화면을 실제 사용할 수 있도록 구현</td>
-<td>11/25</td>
-<td>12/6</td>
-<td></td>
-<td></td>
-<td>항목별로 일정 다시 설계</td>
-</tr>
-</tbody></table>
-
         </div>
         
+        
+        <div class="level is-mobile">
+            <div class="level-start">
+                <div class="level-item">
+                <a class="button is-size-7 is-light" href="/2019/11/15/about-Stock-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EA%B3%84%ED%9A%8D/#more">자세히 보기</a>
+                </div>
+            </div>
+        </div>
         
         
     </div>
@@ -838,7 +698,7 @@
             <div class="level-start has-text-centered-mobile">
                 <a class="footer-logo is-block has-mb-6" href="/">
                 
-                    <img src="/images/logo.svg" alt="hyunsoo&#39;s tech world" height="28">
+                    <img src="/images/logo.png" alt="hyunsoo&#39;s tech world" height="28">
                 
                 </a>
                 <p class="is-size-7">
